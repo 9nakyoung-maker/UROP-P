@@ -3,12 +3,8 @@ using UnityEngine.InputSystem;
 using RosSharp.RosBridgeClient;
 using Geometry = RosSharp.RosBridgeClient.MessageTypes.Geometry;
 
-// Subscribes to /cmd_vel (geometry_msgs/Twist) and drives the kinematic robot by
-// integrating the base pose. ROS angular.z is CCW; Unity yaw is CW, so it's negated.
-// Defaults are TurtleBot3 Burger velocity limits.
-//
-// [수정됨] 벽/가구 충돌 방지 + 키보드 테스트 모드 + 디버그 로그
-// [수정됨 2] 키보드 좌우 회전 방향 반전 버그 수정 (A 누르면 왼쪽으로 돌도록)
+// [수정됨] 메카넘 휠(4륜 전방향) 주행용으로 업그레이드!
+// 기존의 벽 충돌 방지 로직은 100% 유지되며, 대각선 및 게걸음 이동 시에도 완벽하게 작동합니다.
 public class DiffDriveController : MonoBehaviour
 {
     public string CmdVelTopic = "cmd_vel";
@@ -28,8 +24,11 @@ public class DiffDriveController : MonoBehaviour
     public bool debugLog = false;
 
     private RosConnector connector;
-    private volatile float cmdLinear;
-    private volatile float cmdAngular;
+
+    // 메카넘 이동을 위해 전후(X) 외에 좌우(Y) 변수를 추가했습니다.
+    private volatile float cmdLinearX;
+    private volatile float cmdLinearY;
+    private volatile float cmdAngularZ;
     private volatile bool gotCmd;
     private float lastCmdTime;
     private bool subscribed;
@@ -37,7 +36,7 @@ public class DiffDriveController : MonoBehaviour
     private void Start()
     {
         connector = GetComponentInParent<RosConnector>();
-        if (debugLog) Debug.Log("[DiffDriveController] Start() 호출됨. connector=" + (connector != null));
+        if (debugLog) Debug.Log("[MecanumController] Start() 호출됨. connector=" + (connector != null));
     }
 
     private void FixedUpdate()
@@ -51,52 +50,56 @@ public class DiffDriveController : MonoBehaviour
         }
         if (gotCmd) { lastCmdTime = Time.time; gotCmd = false; }
 
-        float lin = cmdLinear, ang = cmdAngular;
+        float linX = cmdLinearX, linY = cmdLinearY, ang = cmdAngularZ;
 
         bool rosCmdFresh = Time.time - lastCmdTime <= CmdTimeout;
         if (!rosCmdFresh)
         {
-            lin = 0f;
+            linX = 0f;
+            linY = 0f;
             ang = 0f;
 
             if (allowKeyboardWhenDisconnected)
             {
                 var keyboard = Keyboard.current;
-                if (keyboard == null)
+                if (keyboard != null)
                 {
-                    if (debugLog && Time.frameCount % 60 == 0)
-                        Debug.LogWarning("[DiffDriveController] Keyboard.current가 null입니다.");
-                }
-                else
-                {
+                    // 1. 전진/후진 (W / S)
                     float vertical = 0f;
                     if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) vertical += 1f;
                     if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) vertical -= 1f;
 
+                    // 2. 좌우 측면 이동/게걸음 (A / D)
                     float horizontal = 0f;
                     if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) horizontal += 1f;
                     if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) horizontal -= 1f;
 
-                    if (debugLog && (vertical != 0f || horizontal != 0f))
-                        Debug.Log("[DiffDriveController] 키 입력 감지됨: vertical=" + vertical + " horizontal=" + horizontal);
+                    // 3. 제자리 회전 (Q / E)
+                    float rotation = 0f;
+                    if (keyboard.qKey.isPressed) rotation += 1f; // Q 누르면 왼쪽 회전
+                    if (keyboard.eKey.isPressed) rotation -= 1f; // E 누르면 오른쪽 회전
 
-                    lin = vertical * MaxLinear;
-                    // [수정] 부호 반전: A(왼쪽)를 누르면 왼쪽(반시계)으로, D(오른쪽)를 누르면 오른쪽(시계)으로 돌도록
-                    ang = -horizontal * MaxAngular;
+                    linX = vertical * MaxLinear;
+                    linY = horizontal * MaxLinear; // 메카넘 좌우 이동 속도
+                    ang = rotation * MaxAngular;
                 }
             }
         }
 
-        lin = Mathf.Clamp(lin, -MaxLinear, MaxLinear);
+        linX = Mathf.Clamp(linX, -MaxLinear, MaxLinear);
+        linY = Mathf.Clamp(linY, -MaxLinear, MaxLinear);
         ang = Mathf.Clamp(ang, -MaxAngular, MaxAngular);
 
         float dt = Time.fixedDeltaTime;
 
+        // 회전 (차체 방향 틀기)
         transform.Rotate(0f, -ang * Mathf.Rad2Deg * dt, 0f, Space.World);
 
-        Vector3 moveDelta = transform.forward * (lin * dt);
+        // [핵심 변경점] 전후진(forward) 뿐만 아니라 좌우 게걸음(right) 이동 벡터를 합산합니다.
+        Vector3 moveDelta = (transform.forward * (linX * dt)) + (transform.right * (linY * dt));
         float moveDistance = moveDelta.magnitude;
 
+        // 장애물 충돌 검사 로직 (대각선/게걸음 이동 시에도 방향을 자동 계산하여 막아줍니다)
         if (moveDistance > 0f)
         {
             Vector3 moveDir = moveDelta.normalized;
@@ -114,7 +117,7 @@ public class DiffDriveController : MonoBehaviour
             if (blocked)
             {
                 float safeDistance = Mathf.Max(0f, hit.distance - 0.01f);
-                if (debugLog) Debug.Log("[DiffDriveController] 충돌 감지! 대상: " + hit.collider.name);
+                if (debugLog) Debug.Log("[MecanumController] 충돌 감지! 대상: " + hit.collider.name);
                 transform.position += moveDir * safeDistance;
             }
             else
@@ -126,8 +129,10 @@ public class DiffDriveController : MonoBehaviour
 
     private void OnCmdVel(Geometry.Twist msg)
     {
-        cmdLinear = (float)msg.linear.x;
-        cmdAngular = (float)msg.angular.z;
+        cmdLinearX = (float)msg.linear.x;
+        // ROS 환경에서도 메카넘 휠의 좌우(Y축) 제어값을 받을 수 있게 추가
+        cmdLinearY = (float)msg.linear.y;
+        cmdAngularZ = (float)msg.angular.z;
         gotCmd = true;
     }
 }
