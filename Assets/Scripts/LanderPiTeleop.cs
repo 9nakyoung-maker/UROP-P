@@ -18,6 +18,8 @@ public class LanderPiTeleop : MonoBehaviour
     [Header("차체 이동")]
     public float maxLinear = 0.3f;        // m/s
     public float maxAngular = 90f;        // deg/s
+    [Tooltip("끄면 이 스크립트는 차체를 움직이지 않음 (ROS /cmd_vel 로 DiffDriveController가 움직일 때 끄기)")]
+    public bool driveBase = true;
     public bool mecanum = true;           // 메카넘 차체면 Q/E로 옆 이동 가능
     [Tooltip("W를 눌렀는데 뒤로 가면 체크")]
     public bool invertForward = false;
@@ -79,6 +81,7 @@ public class LanderPiTeleop : MonoBehaviour
     bool articulationMode;
     ArticulationBody rootAB;
     Transform movingRoot;                 // 실제로 움직일 Transform
+    string lastHitName;                   // 같은 물체에 막힌 로그를 반복하지 않도록
     readonly List<Joint> arm = new List<Joint>();
     Joint leftJaw, rightJaw;
     int selected = 0;
@@ -106,7 +109,7 @@ public class LanderPiTeleop : MonoBehaviour
             foreach (var mb in GetComponentsInChildren<MonoBehaviour>(true))
             {
                 string n = mb.GetType().Name;
-                if (n.StartsWith("UrdfJoint") || n == "UrdfInertial") { DestroyImmediate(mb); removed++; }
+                if (n.StartsWith("UrdfJoint") || n == "UrdfInertial" || n.Contains("JointLimitsManager") || n.StartsWith("JointState")) { DestroyImmediate(mb); removed++; }
             }
             foreach (var jnt in GetComponentsInChildren<UnityEngine.Joint>(true)) { DestroyImmediate(jnt); removed++; }
             // Rigidbody는 지우지 않고 키네마틱으로 고정 (다른 스크립트가 다시 켜도 FixedUpdate에서 매번 되돌림)
@@ -271,9 +274,9 @@ public class LanderPiTeleop : MonoBehaviour
         float dt = Time.fixedDeltaTime;
 
         // ---------- 차체 ----------
-        float fwd = (kb.wKey.isPressed ? 1 : 0) - (kb.sKey.isPressed ? 1 : 0);
-        float turn = (kb.dKey.isPressed ? 1 : 0) - (kb.aKey.isPressed ? 1 : 0);
-        float side = mecanum ? (kb.eKey.isPressed ? 1 : 0) - (kb.qKey.isPressed ? 1 : 0) : 0;
+        float fwd = driveBase ? (kb.wKey.isPressed ? 1 : 0) - (kb.sKey.isPressed ? 1 : 0) : 0;
+        float turn = driveBase ? (kb.dKey.isPressed ? 1 : 0) - (kb.aKey.isPressed ? 1 : 0) : 0;
+        float side = driveBase && mecanum ? (kb.eKey.isPressed ? 1 : 0) - (kb.qKey.isPressed ? 1 : 0) : 0;
 
         if (fwd != 0 || turn != 0 || side != 0)
         {
@@ -295,6 +298,15 @@ public class LanderPiTeleop : MonoBehaviour
                 {
                     if (hit.transform.IsChildOf(transform)) continue;   // 자기 자신의 콜라이더는 무시
                     if (hit.distance <= 0f) continue;                    // 시작부터 겹친 바닥 등은 무시
+                    if (hit.normal.y > 0.7f) continue;                   // 바닥 이음매·문턱처럼 위를 보는 면은 벽이 아님
+                    if (hit.distance - 0.01f < allowed && hit.collider.name != lastHitName)
+                    {
+                        lastHitName = hit.collider.name;
+                        Debug.Log($"[LanderPiTeleop] '{hit.collider.name}'에 막힘 (Hierarchy에서 노랗게 표시)", hit.collider);
+#if UNITY_EDITOR
+                        UnityEditor.EditorGUIUtility.PingObject(hit.collider.gameObject);
+#endif
+                    }
                     allowed = Mathf.Min(allowed, Mathf.Max(0f, hit.distance - 0.01f));
                 }
                 pos += dir * allowed;

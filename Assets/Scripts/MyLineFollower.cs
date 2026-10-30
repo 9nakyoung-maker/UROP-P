@@ -1,290 +1,345 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+// =====================================================================================
+//  MyLineFollower (팀원 버전을 다듬은 것)
+//  - 바닥에 놓은 경로 점(Point_0, Point_1 ...) 사이를 다익스트라 최단 경로로 자동 주행
+//  - Z: 에어컨   X: 조명 스위치   C: 홈(Point_0)   V: 정지      (키는 Inspector에서 변경 가능)
+//
+//  팀원 원본에서 바뀐 점
+//   1) 이웃 연결 자동: 두 점 사이에 벽·가구가 없으면 알아서 연결 (Auto Connect). 수동 연결도 가능
+//   2) 실제 LanderPi 속도(0.3 m/s), 제자리 회전 후 전진 → 실물 로봇처럼 움직임
+//   3) 키 충돌 해결: A키는 차체 회전(LanderPiTeleop)과 겹쳐서 Z/X/C로 변경, 새 Input System 사용
+//   4) 경로 선이 분홍색·1m 두께로 나오던 문제 → 빨간색 3cm 선
+//   5) 막혀서 못 가면 3초 뒤 멈추고 Console에 알림
+//
+//  붙이는 곳: 로봇 맨 위 오브젝트 (rosmentor)
+// =====================================================================================
 
 [System.Serializable]
 public class NodeData
 {
     public string Name;
     public Transform WayPoint;
-    public List<NodeData> Neighbors = new List<NodeData>();
+    [Tooltip("Auto Connect를 끈 경우에만 사용: 이 점과 바로 이어지는 점들")]
+    public List<Transform> Neighbors = new List<Transform>();
 
     [HideInInspector] public float gScore = float.MaxValue;
-    [HideInInspector] public NodeData parent = null;
+    [System.NonSerialized] public NodeData parent;
+    [System.NonSerialized] public List<NodeData> links = new List<NodeData>();
 }
 
 public class MyLineFollower : MonoBehaviour
 {
-    [Header("전체 경로 점들 (0번이 Point_0 / Home)")]
+    [Header("경로 점들 (0번 = Point_0 = Home)")]
+    [Tooltip("경로 점들을 모아둔 부모 오브젝트. Nodes가 비어 있으면 이 자식들로 자동 채움")]
+    public Transform WaypointsParent;
     public List<NodeData> Nodes = new List<NodeData>();
 
-    [Header("이동 속도 및 설정")]
-    public float MoveSpeed = 2.0f;
-    public float RotateSpeed = 5.0f;
-    public float ArrivalDistance = 0.2f;
+    [Header("점끼리 연결")]
+    [Tooltip("켜두면 두 점 사이에 장애물이 없을 때 자동 연결 (Neighbors 입력 불필요)")]
+    public bool AutoConnect = true;
+    [Tooltip("로봇 반지름(m). 이만큼 여유가 있어야 '지나갈 수 있다'고 판단")]
+    public float RobotRadius = 0.15f;
 
-    [Header("목적지 인덱스 번호")]
-    public int AirconNodeIndex = 3;      // A 키 (Point_3)
-    public int LightSwitchNodeIndex = 6; // B 키 (Point_6)
-    public int HomeNodeIndex = 0;        // C 키 (Point_0)
+    [Header("목적지 (Nodes 번호)")]
+    public int AirconNodeIndex = 3;
+    public int LightSwitchNodeIndex = 6;
+    public int HomeNodeIndex = 0;
+    public Key AirconKey = Key.Z;
+    public Key LightSwitchKey = Key.X;
+    public Key HomeKey = Key.C;
+    public Key StopKey = Key.V;
 
-    [Header("선 바닥 띄움 높이")]
-    public float LineOffsetY = 0.01f;     // 바닥에 파묻히지 않게 적절히 띄움
+    [Header("이동 (실물 LanderPi 기준)")]
+    public float MoveSpeed = 0.3f;          // m/s
+    public float TurnSpeed = 90f;           // 도/초
+    [Tooltip("방향이 이 각도 넘게 틀어져 있으면 제자리에서 먼저 회전")]
+    public float TurnInPlaceAngle = 30f;
+    public float ArrivalDistance = 0.1f;
+    [Tooltip("로봇이 옆이나 뒤를 보고 달리면 90 / -90 / 180 으로")]
+    public float ForwardAngleOffset = 0f;
+    public bool StartAtHome = true;
 
-    private LineRenderer lineRenderer;
-    private List<Transform> currentPath = new List<Transform>();
-    private int currentPathIndex = 0;
-    private bool isMoving = false;
+    [Header("경로 선")]
+    public Color LineColor = Color.red;
+    public float LineWidth = 0.03f;
+    public float LineOffsetY = 0.01f;
+    public bool ShowHelp = true;
+
+    readonly List<Transform> currentPath = new List<Transform>();
+    int currentPathIndex;
+    bool isMoving;
+    LineRenderer lineRenderer;
+    string status = "대기 중";
+    Vector3 progressPos; float progressTime;
 
     void Start()
     {
-        lineRenderer = GetComponent<LineRenderer>();
-        if (lineRenderer == null)
+        FillNodesFromParent();
+        BuildLinks();
+        SetupLine();
+
+        if (StartAtHome && Valid(HomeNodeIndex))
         {
-            lineRenderer = gameObject.AddComponent<LineRenderer>();
-        }
-
-        // 실행 직후 잔여 선 지우기
-        if (lineRenderer != null) lineRenderer.positionCount = 0;
-
-        // 인스펙터 참조 자동 연결 (다익스트라 탐색용)
-        LinkNodeNeighbors();
-
-        // 로봇 시작 위치를 Point_0 (Home) 위치에 정렬
-        if (Nodes != null && Nodes.Count > 0 && Nodes[HomeNodeIndex].WayPoint != null)
-        {
-            Vector3 startPos = Nodes[HomeNodeIndex].WayPoint.position;
-            transform.position = new Vector3(startPos.x, transform.position.y, startPos.z);
+            Vector3 p = Nodes[HomeNodeIndex].WayPoint.position;
+            transform.position = new Vector3(p.x, transform.position.y, p.z);
         }
     }
 
-    private void LinkNodeNeighbors()
-    {
-        Dictionary<Transform, NodeData> nodeMap = new Dictionary<Transform, NodeData>();
-        foreach (var node in Nodes)
-        {
-            if (node != null && node.WayPoint != null)
-            {
-                if (!nodeMap.ContainsKey(node.WayPoint))
-                    nodeMap.Add(node.WayPoint, node);
-            }
-        }
-
-        foreach (var node in Nodes)
-        {
-            if (node == null) continue;
-            List<NodeData> realNeighbors = new List<NodeData>();
-            foreach (var neighbor in node.Neighbors)
-            {
-                if (neighbor != null && neighbor.WayPoint != null && nodeMap.ContainsKey(neighbor.WayPoint))
-                {
-                    realNeighbors.Add(nodeMap[neighbor.WayPoint]);
-                }
-            }
-            node.Neighbors = realNeighbors;
-        }
-    }
-
+    // ------------------------------------------------------------------ 입력
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            SetDestination(AirconNodeIndex);
-        }
-        else if (Input.GetKeyDown(KeyCode.B))
-        {
-            SetDestination(LightSwitchNodeIndex);
-        }
-        else if (Input.GetKeyDown(KeyCode.C))
-        {
-            SetDestination(HomeNodeIndex);
-        }
-
-        if (isMoving && currentPath != null && currentPath.Count > 0)
-        {
-            MoveAlongPath();
-        }
+        var kb = Keyboard.current;
+        if (kb == null) return;
+        if (kb[AirconKey].wasPressedThisFrame) SetDestination(AirconNodeIndex);
+        else if (kb[LightSwitchKey].wasPressedThisFrame) SetDestination(LightSwitchNodeIndex);
+        else if (kb[HomeKey].wasPressedThisFrame) SetDestination(HomeNodeIndex);
+        else if (kb[StopKey].wasPressedThisFrame) Stop("정지");
     }
 
+    // ------------------------------------------------------------------ 이동 (물리 주기에 맞춰서, RobotBodyBlocker가 그 다음에 검사)
+    void FixedUpdate()
+    {
+        if (!isMoving) return;
+        if (currentPathIndex >= currentPath.Count) { isMoving = false; status = "도착 ✓"; Debug.Log("[MyLineFollower] 목적지에 도착했습니다!"); return; }
+
+        float dt = Time.fixedDeltaTime;
+        Vector3 target = currentPath[currentPathIndex].position;
+        Vector3 to = target - transform.position; to.y = 0f;
+
+        if (to.magnitude < ArrivalDistance) { currentPathIndex++; return; }
+
+        // 회전
+        float desiredYaw = Quaternion.LookRotation(to).eulerAngles.y + ForwardAngleOffset;
+        float yawErr = Mathf.DeltaAngle(transform.eulerAngles.y, desiredYaw);
+        float step = Mathf.Clamp(yawErr, -TurnSpeed * dt, TurnSpeed * dt);
+        transform.Rotate(0f, step, 0f, Space.World);
+
+        // 방향이 거의 맞으면 전진
+        if (Mathf.Abs(yawErr) < TurnInPlaceAngle)
+            transform.position += to.normalized * Mathf.Min(MoveSpeed * dt, to.magnitude);
+
+        // 막힘 감지: 3초 동안 2cm도 못 갔고 회전도 거의 끝났으면 멈춤
+        if ((transform.position - progressPos).sqrMagnitude > 0.0004f || Mathf.Abs(yawErr) > TurnInPlaceAngle)
+        { progressPos = transform.position; progressTime = Time.time; }
+        else if (Time.time - progressTime > 3f)
+            Stop($"'{currentPath[currentPathIndex].name}'로 가다가 막힘 — 점을 벽·가구에서 더 떨어뜨리세요");
+    }
+
+    void Stop(string why)
+    {
+        isMoving = false; status = why;
+        Debug.LogWarning("[MyLineFollower] " + why);
+    }
+
+    // ------------------------------------------------------------------ 경로 계산
     public void SetDestination(int targetIndex)
     {
-        if (Nodes == null || Nodes.Count == 0 || targetIndex < 0 || targetIndex >= Nodes.Count)
-        {
-            Debug.LogError("Nodes 목록이 비어있거나 인덱스가 올바르지 않습니다.");
-            return;
-        }
+        if (!Valid(targetIndex)) { Debug.LogError($"[MyLineFollower] {targetIndex}번 점이 없어요. Nodes 목록을 확인하세요."); return; }
 
-        NodeData startNode = GetClosestNode(transform.position);
-        NodeData targetNode = Nodes[targetIndex];
+        BuildLinks();   // 그 사이 가구를 옮겼을 수도 있으니 매번 다시 연결
+        NodeData start = GetClosestNode(transform.position);
+        NodeData goal = Nodes[targetIndex];
+        var path = CalculateDijkstraPath(start, goal);
 
-        if (startNode == null || targetNode == null)
-        {
-            Debug.LogError("시작 또는 목적지 노드를 찾지 못했습니다.");
-            return;
-        }
+        if (path == null) { Stop($"{start?.WayPoint?.name} → {goal.WayPoint.name} 이어진 길이 없어요 (점 사이에 장애물이 있는지 확인)"); return; }
 
-        // 1. 다익스트라 최단 경로 계산
-        currentPath = CalculateDijkstraPath(startNode, targetNode);
+        currentPath.Clear(); currentPath.AddRange(path);
+        currentPathIndex = 0; isMoving = true;
+        progressPos = transform.position; progressTime = Time.time;
+        status = "이동 중 → " + goal.WayPoint.name;
+        DrawFullPathLine();
 
-        if (currentPath != null && currentPath.Count > 0)
-        {
-            currentPathIndex = 0;
-            isMoving = true;
-
-            // 2. [가시화] 경로 계산 완료 즉시 전체 빨간색 경로 선을 바닥에 먼저 그림!
-            DrawFullPathLine();
-
-            string pathStr = "";
-            foreach (var t in currentPath) pathStr += t.name + " ➔ ";
-            Debug.Log($"[경로 탐색 성공] 전체 경로 가시화 완료: {pathStr}");
-        }
-        else
-        {
-            Debug.LogWarning("경로 탐색 실패: 연결 노드를 확인하세요.");
-        }
+        var names = new List<string>(); foreach (var t in currentPath) names.Add(t.name);
+        Debug.Log("[MyLineFollower] 경로: " + string.Join(" ➔ ", names));
     }
 
-    // 전체 경로 선을 바닥에 미리 그려주는 함수
-    private void DrawFullPathLine()
+    List<Transform> CalculateDijkstraPath(NodeData start, NodeData target)
     {
-        if (lineRenderer == null || currentPath == null || currentPath.Count == 0) return;
+        if (start == null || target == null) return null;
+        foreach (var n in Nodes) { n.gScore = float.MaxValue; n.parent = null; }
+        var open = new List<NodeData> { start };
+        start.gScore = 0f;
 
-        // 시작점(현재 로봇 위치) + 경로 상의 노드들
-        lineRenderer.positionCount = currentPath.Count + 1;
-
-        // transform.position.y 대신 WayPoint 바닥 높이(또는 0.01f 등 바닥 고정값) 기준 적용
-        float floorY = currentPath[0].position.y + LineOffsetY;
-
-        // 0번 포인트: 로봇의 출발 위치
-        lineRenderer.SetPosition(0, new Vector3(transform.position.x, floorY, transform.position.z));
-
-        // 1번 포인트부터 끝까지: 경로 상의 모든 WayPoint 위치
-        for (int i = 0; i < currentPath.Count; i++)
+        while (open.Count > 0)
         {
-            Vector3 pPos = currentPath[i].position;
-            lineRenderer.SetPosition(i + 1, new Vector3(pPos.x, floorY, pPos.z));
-        }
-    }
-
-    private NodeData GetClosestNode(Vector3 pos)
-    {
-        NodeData closest = null;
-        float minDist = float.MaxValue;
-
-        foreach (var node in Nodes)
-        {
-            if (node == null || node.WayPoint == null) continue;
-
-            float dist = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(node.WayPoint.position.x, node.WayPoint.position.z));
-            if (dist < minDist)
+            open.Sort((a, b) => a.gScore.CompareTo(b.gScore));
+            NodeData cur = open[0]; open.RemoveAt(0);
+            if (cur == target)
             {
-                minDist = dist;
-                closest = node;
-            }
-        }
-        return closest;
-    }
-
-    private List<Transform> CalculateDijkstraPath(NodeData start, NodeData target)
-    {
-        foreach (var n in Nodes)
-        {
-            if (n == null) continue;
-            n.gScore = float.MaxValue;
-            n.parent = null;
-        }
-
-        List<NodeData> openList = new List<NodeData>();
-        start.gScore = 0;
-        openList.Add(start);
-
-        while (openList.Count > 0)
-        {
-            openList.Sort((a, b) => a.gScore.CompareTo(b.gScore));
-            NodeData current = openList[0];
-            openList.RemoveAt(0);
-
-            if (current == target)
-            {
-                List<Transform> path = new List<Transform>();
-                NodeData curr = target;
-                while (curr != null)
-                {
-                    if (curr.WayPoint != null) path.Add(curr.WayPoint);
-                    curr = curr.parent;
-                }
+                var path = new List<Transform>();
+                for (var c = target; c != null; c = c.parent) path.Add(c.WayPoint);
                 path.Reverse();
                 return path;
             }
-
-            foreach (var neighbor in current.Neighbors)
+            foreach (var nb in cur.links)
             {
-                if (neighbor == null || neighbor.WayPoint == null) continue;
-
-                float dist = Vector3.Distance(current.WayPoint.position, neighbor.WayPoint.position);
-                float newScore = current.gScore + dist;
-
-                if (newScore < neighbor.gScore)
-                {
-                    neighbor.gScore = newScore;
-                    neighbor.parent = current;
-                    if (!openList.Contains(neighbor)) openList.Add(neighbor);
-                }
+                float s = cur.gScore + Vector3.Distance(cur.WayPoint.position, nb.WayPoint.position);
+                if (s < nb.gScore) { nb.gScore = s; nb.parent = cur; if (!open.Contains(nb)) open.Add(nb); }
             }
         }
         return null;
     }
 
-    private void MoveAlongPath()
+    NodeData GetClosestNode(Vector3 pos)
     {
-        if (currentPathIndex >= currentPath.Count)
+        NodeData best = null; float bestD = float.MaxValue;
+        foreach (var n in Nodes)
         {
-            isMoving = false;
-            // 목적지 도착 시 선 지우기 (원치 않으면 이 주석 줄을 지우세요)
-            // if (lineRenderer != null) lineRenderer.positionCount = 0;
-            Debug.Log("목적지에 무사히 도착했습니다!");
-            return;
+            if (n.WayPoint == null) continue;
+            Vector3 d = n.WayPoint.position - pos; d.y = 0f;
+            if (d.sqrMagnitude < bestD) { bestD = d.sqrMagnitude; best = n; }
         }
+        return best;
+    }
 
-        Transform targetWP = currentPath[currentPathIndex];
-        Vector3 targetPos = new Vector3(targetWP.position.x, transform.position.y, targetWP.position.z);
+    // ------------------------------------------------------------------ 점 연결
+    void FillNodesFromParent()
+    {
+        Nodes.RemoveAll(n => n == null || n.WayPoint == null);
+        if (Nodes.Count > 0 || WaypointsParent == null) return;
+        foreach (Transform c in WaypointsParent) Nodes.Add(new NodeData { Name = c.name, WayPoint = c });
+        Debug.Log($"[MyLineFollower] {WaypointsParent.name}의 자식 {Nodes.Count}개로 경로 점 목록을 채웠어요.");
+    }
 
-        Vector3 dir = (targetPos - transform.position).normalized;
-        if (dir != Vector3.zero)
+    void BuildLinks()
+    {
+        foreach (var n in Nodes) n.links = new List<NodeData>();
+        for (int i = 0; i < Nodes.Count; i++)
+            for (int j = i + 1; j < Nodes.Count; j++)
+            {
+                NodeData a = Nodes[i], b = Nodes[j];
+                if (a.WayPoint == null || b.WayPoint == null) continue;
+                bool linked = AutoConnect
+                    ? Clear(a.WayPoint.position, b.WayPoint.position)
+                    : a.Neighbors.Contains(b.WayPoint) || b.Neighbors.Contains(a.WayPoint);
+                if (linked) { a.links.Add(b); b.links.Add(a); }
+            }
+    }
+
+    // 로봇 크기의 공을 굴려서 두 점 사이에 장애물이 없는지 검사 (로봇 자신은 무시)
+    bool Clear(Vector3 a, Vector3 b)
+    {
+        float h = Mathf.Max(RobotRadius + 0.03f, 0.15f);
+        Vector3 from = a + Vector3.up * h, dir = b - a; dir.y = 0f;
+        float dist = dir.magnitude;
+        if (dist < 1e-3f) return true;
+        foreach (var hit in Physics.SphereCastAll(from, RobotRadius, dir / dist, dist, ~0, QueryTriggerInteraction.Ignore))
         {
-            Quaternion targetRot = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, RotateSpeed * Time.deltaTime);
+            if (hit.distance <= 0f) continue;                       // 시작부터 겹친 바닥 등
+            if (hit.transform.IsChildOf(transform)) continue;      // 로봇 자신
+            if (hit.normal.y > 0.7f) continue;                     // 바닥면
+            return false;
         }
+        return true;
+    }
 
-        transform.position = Vector3.MoveTowards(transform.position, targetPos, MoveSpeed * Time.deltaTime);
+    bool Valid(int i) => Nodes != null && i >= 0 && i < Nodes.Count && Nodes[i] != null && Nodes[i].WayPoint != null;
 
-        if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(targetPos.x, targetPos.z)) < ArrivalDistance)
+    // ------------------------------------------------------------------ 경로 선
+    void SetupLine()
+    {
+        var go = new GameObject("PathLine (MyLineFollower)");
+        lineRenderer = go.AddComponent<LineRenderer>();
+        lineRenderer.useWorldSpace = true;
+        lineRenderer.widthMultiplier = LineWidth;
+        lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        lineRenderer.startColor = lineRenderer.endColor = LineColor;
+        lineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lineRenderer.positionCount = 0;
+    }
+
+    void DrawFullPathLine()
+    {
+        if (lineRenderer == null || currentPath.Count == 0) return;
+        float y = currentPath[0].position.y + LineOffsetY;
+        lineRenderer.positionCount = currentPath.Count + 1;
+        lineRenderer.SetPosition(0, new Vector3(transform.position.x, y, transform.position.z));
+        for (int i = 0; i < currentPath.Count; i++)
         {
-            currentPathIndex++;
+            Vector3 p = currentPath[i].position;
+            lineRenderer.SetPosition(i + 1, new Vector3(p.x, y, p.z));
         }
     }
 
-    private void OnDrawGizmos()
+    void OnGUI()
     {
-        if (Nodes == null || Nodes.Count == 0) return;
+        if (!ShowHelp) return;
+        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 330, 100), GUI.skin.box);
+        GUILayout.Label("자동 주행 (MyLineFollower)");
+        GUILayout.Label($"{AirconKey}: 에어컨   {LightSwitchKey}: 조명 스위치   {HomeKey}: 홈   {StopKey}: 정지");
+        GUILayout.Label(status);
+        GUILayout.EndArea();
+    }
 
-        foreach (var node in Nodes)
+    // ------------------------------------------------------------------ Scene 화면 표시
+    void OnDrawGizmos()
+    {
+        if (Nodes == null) return;
+        if (!Application.isPlaying) BuildLinks();
+        for (int i = 0; i < Nodes.Count; i++)
         {
-            if (node == null || node.WayPoint == null) continue;
-
-            Vector3 nodePos = node.WayPoint.position;
-
-            if (node.Neighbors != null)
-            {
-                Gizmos.color = Color.red;
-                foreach (var neighbor in node.Neighbors)
-                {
-                    if (neighbor != null && neighbor.WayPoint != null)
-                    {
-                        Gizmos.DrawLine(nodePos, neighbor.WayPoint.position);
-                    }
-                }
-            }
+            var n = Nodes[i];
+            if (n == null || n.WayPoint == null) continue;
+            Vector3 p = n.WayPoint.position;
+            Gizmos.color = i == HomeNodeIndex ? Color.cyan : i == AirconNodeIndex ? Color.blue : i == LightSwitchNodeIndex ? Color.yellow : Color.white;
+            Gizmos.DrawSphere(p, 0.05f);
+            Gizmos.color = new Color(1f, 0.3f, 0.3f);
+            if (n.links != null) foreach (var nb in n.links) Gizmos.DrawLine(p, nb.WayPoint.position);
+#if UNITY_EDITOR
+            string tag = i == HomeNodeIndex ? " (홈)" : i == AirconNodeIndex ? " (에어컨)" : i == LightSwitchNodeIndex ? " (스위치)" : "";
+            Handles.Label(p + Vector3.up * 0.1f, i + ": " + n.WayPoint.name + tag);
+#endif
         }
+    }
+
+#if UNITY_EDITOR
+    // Inspector 버튼에서 사용: Scene 화면 가운데(바닥)에 새 경로 점 추가
+    public void AddPointAtSceneView()
+    {
+        if (WaypointsParent == null)
+        {
+            WaypointsParent = new GameObject("Waypoints").transform;
+            Undo.RegisterCreatedObjectUndo(WaypointsParent.gameObject, "Add waypoint");
+        }
+        Vector3 pos = transform.position;
+        var sv = SceneView.lastActiveSceneView;
+        if (sv != null && Physics.Raycast(sv.camera.transform.position, sv.camera.transform.forward, out var hit, 100f)) pos = hit.point;
+        var p = new GameObject("Point_" + WaypointsParent.childCount).transform;
+        p.position = pos; p.SetParent(WaypointsParent, true);
+        Undo.RegisterCreatedObjectUndo(p.gameObject, "Add waypoint");
+        Undo.RecordObject(this, "Add waypoint");
+        Nodes.Add(new NodeData { Name = p.name, WayPoint = p });
+        Selection.activeTransform = p;
+    }
+
+    public void RefillFromParent()
+    {
+        Undo.RecordObject(this, "Refill waypoints");
+        Nodes.Clear();
+        FillNodesFromParent();
+    }
+#endif
+}
+
+#if UNITY_EDITOR
+[CustomEditor(typeof(MyLineFollower))]
+public class MyLineFollowerEditor : Editor
+{
+    public override void OnInspectorGUI()
+    {
+        var f = (MyLineFollower)target;
+        EditorGUILayout.HelpBox("1) [점 추가]로 경로 점을 만들고 Scene에서 원하는 곳(바닥)으로 옮기기\n2) 에어컨·스위치·홈 번호 입력\n3) Play → Z / X / C", MessageType.Info);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("➕ 점 추가 (Scene 화면 가운데)", GUILayout.Height(26))) f.AddPointAtSceneView();
+        if (GUILayout.Button("🔄 목록 다시 채우기", GUILayout.Height(26))) f.RefillFromParent();
+        GUILayout.EndHorizontal();
+        DrawDefaultInspector();
     }
 }
+#endif
