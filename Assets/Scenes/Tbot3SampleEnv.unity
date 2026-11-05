@@ -758,37 +758,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9090ae501ff9cd459bec5271d40249c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: siemens.ros-sharp.Runtime::RosSharp.Urdf.UrdfVisuals
---- !u!1 &79165482
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 79165483}
-  m_Layer: 0
-  m_Name: Point_3
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &79165483
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 79165482}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.499, y: -0.05, z: -0.189}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 393025771}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &81026046
 GameObject:
   m_ObjectHideFlags: 8
@@ -1445,6 +1414,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9090ae501ff9cd459bec5271d40249c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: siemens.ros-sharp.Runtime::RosSharp.Urdf.UrdfVisuals
+--- !u!4 &112286790 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
+  m_PrefabInstance: {fileID: 1745466070}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &139923955
 GameObject:
   m_ObjectHideFlags: 0
@@ -3462,6 +3436,11 @@ MonoBehaviour:
   - rosmentor
   - turtlebot3_burger
   - RealRobotLink
+--- !u!4 &389478788 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5451e73a6754e3b48b2d8dd685415193, type: 3}
+  m_PrefabInstance: {fileID: 1443885513}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &393025770
 GameObject:
   m_ObjectHideFlags: 0
@@ -3491,10 +3470,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1428674654}
-  - {fileID: 720514978}
   - {fileID: 1618377413}
-  - {fileID: 79165483}
+  - {fileID: 927719535}
+  - {fileID: 1350872514}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &396675729
@@ -6537,7 +6515,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: siemens.ros-sharp.Runtime::RosSharp.Urdf.UrdfLink
   IsBaseLink: 0
---- !u!1 &720514977
+--- !u!1 &713526105
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -6545,28 +6523,61 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 720514978}
+  - component: {fileID: 713526107}
+  - component: {fileID: 713526106}
   m_Layer: 0
-  m_Name: Point_1
+  m_Name: NavMesh
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &720514978
+--- !u!114 &713526106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 713526105}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a5ac11cc976e418e8d13136b07e1f52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshSurface
+  m_SerializedVersion: 0
+  m_AgentTypeID: 0
+  m_CollectObjects: 0
+  m_Size: {x: 10, y: 10, z: 10}
+  m_Center: {x: 0, y: 2, z: 0}
+  m_LayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_UseGeometry: 0
+  m_DefaultArea: 0
+  m_GenerateLinks: 0
+  m_IgnoreNavMeshAgent: 1
+  m_IgnoreNavMeshObstacle: 1
+  m_OverrideTileSize: 0
+  m_TileSize: 256
+  m_OverrideVoxelSize: 0
+  m_VoxelSize: 0.06666667
+  m_MinRegionArea: 2
+  m_NavMeshData: {fileID: 23800000, guid: 819883810372b7a4f839b0229ecf2dbe, type: 2}
+  m_BuildHeightMesh: 0
+--- !u!4 &713526107
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 720514977}
+  m_GameObject: {fileID: 713526105}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -7.715, y: -0.05, z: -1.502}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.8, y: 1, z: 0.8}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 393025771}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &728407721
 GameObject:
@@ -8275,6 +8286,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: siemens.ros-sharp.Runtime::RosSharp.Urdf.UrdfVisual
   GeometryType: 3
+--- !u!1 &927719534
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 927719535}
+  m_Layer: 0
+  m_Name: Point_1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &927719535
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 927719534}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -1.499, y: -0.05, z: -0.189}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 393025771}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &938429507
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12393,6 +12435,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1347776134}
   m_CullTransparentMesh: 1
+--- !u!1 &1350872513
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1350872514}
+  m_Layer: 0
+  m_Name: Point_3
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1350872514
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1350872513}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.616, y: -0.05, z: -3.489}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 393025771}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1351107340
 GameObject:
   m_ObjectHideFlags: 0
@@ -12940,37 +13013,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9090ae501ff9cd459bec5271d40249c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: siemens.ros-sharp.Runtime::RosSharp.Urdf.UrdfVisuals
---- !u!1 &1428674653
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1428674654}
-  m_Layer: 0
-  m_Name: Point_0
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1428674654
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428674653}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.499, y: -0.05, z: -0.189}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 393025771}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1443885513
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13221,7 +13263,10 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: f9f9d3268d44562438a9a92e73c6361c, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5451e73a6754e3b48b2d8dd685415193, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 112286790}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5451e73a6754e3b48b2d8dd685415193, type: 3}
       insertIndex: -1
@@ -14578,6 +14623,7 @@ GameObject:
   - component: {fileID: 1587679066}
   - component: {fileID: 1587679065}
   - component: {fileID: 1587679067}
+  - component: {fileID: 1587679068}
   m_Layer: 0
   m_Name: rosmentor
   m_TagString: Untagged
@@ -14757,27 +14803,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MyLineFollower
   WaypointsParent: {fileID: 393025771}
   Nodes:
-  - Name: Point_0
-    WayPoint: {fileID: 1428674654}
-    Neighbors: []
-    gScore: 3.4028235e+38
-  - Name: Point_1
-    WayPoint: {fileID: 720514978}
-    Neighbors: []
-    gScore: 3.4028235e+38
   - Name: Point_2
     WayPoint: {fileID: 1618377413}
     Neighbors: []
     gScore: 3.4028235e+38
-  - Name: Point_3
-    WayPoint: {fileID: 79165483}
+  - Name: Point_1
+    WayPoint: {fileID: 927719535}
+    Neighbors: []
+    gScore: 3.4028235e+38
+  - Name: Point_2
+    WayPoint: {fileID: 1350872514}
     Neighbors: []
     gScore: 3.4028235e+38
   AutoConnect: 1
   RobotRadius: 0.15
-  AirconNodeIndex: 3
-  LightSwitchNodeIndex: 6
-  HomeNodeIndex: 0
+  AirconNodeIndex: 2
+  LightSwitchNodeIndex: 0
+  HomeNodeIndex: 1
   AirconKey: 40
   LightSwitchKey: 38
   HomeKey: 17
@@ -14788,9 +14830,57 @@ MonoBehaviour:
   ArrivalDistance: 0.1
   ForwardAngleOffset: 0
   StartAtHome: 1
+  AutoReroute: 1
+  LookAheadDistance: 0.4
+  StuckSeconds: 1.5
+  BlockedMemorySeconds: 30
+  TryDetourPoint: 1
+  DetourMaxOffset: 1.2
+  MaxReplans: 5
   LineColor: {r: 1, g: 0, b: 0, a: 1}
   LineWidth: 0.03
   LineOffsetY: 0.01
+  ShowHelp: 1
+--- !u!114 &1587679068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1587679055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd50ece0b44486242940fa7a349603d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NavMeshAutoDriver
+  AirconPoint: {fileID: 1350872514}
+  LightSwitchPoint: {fileID: 1618377413}
+  HomePoint: {fileID: 927719535}
+  AirconKey: 40
+  LightSwitchKey: 38
+  HomeKey: 17
+  StopKey: 36
+  MoveSpeed: 0.3
+  TurnSpeed: 90
+  TurnInPlaceAngle: 30
+  ArrivalDistance: 0.15
+  ForwardAngleOffset: 0
+  StartAtHome: 1
+  FloorTolerance: 0.4
+  SensorRange: 0.5
+  SensorRadius: 0.12
+  SensorHeight: 0.15
+  StuckSeconds: 1.5
+  BackUpDistance: 0.15
+  MaxReplans: 8
+  AllowReverse: 1
+  ReverseMaxDistance: 1
+  AllowStrafe: 1
+  StrafeDistance: 0.2
+  MarkObstacles: 1
+  MaxObstacleSize: 2.5
+  LineColor: {r: 1, g: 0, b: 0, a: 1}
+  LineWidth: 0.03
   ShowHelp: 1
 --- !u!1 &1594731087
 GameObject:
@@ -15105,7 +15195,7 @@ Transform:
   m_GameObject: {fileID: 1618377412}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -4.12, y: -0.05, z: -0.59}
+  m_LocalPosition: {x: -7.59, y: 0.022, z: -1.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16318,7 +16408,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 0}
+    m_TransformParent: {fileID: 389478788}
     m_Modifications:
     - target: {fileID: -9067974714781103137, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_IsActive
@@ -16350,15 +16440,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -16518,15 +16608,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4177501090931222239, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -7.483
+      value: -7.857
       objectReference: {fileID: 0}
     - target: {fileID: 4177501090931222239, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.132
+      value: -0.658
       objectReference: {fileID: 0}
     - target: {fileID: 4177501090931222239, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -1.082
+      value: -1.331
       objectReference: {fileID: 0}
     - target: {fileID: 5886695710007135842, guid: 65de27b0af59d524cbe0d1cbd65ca5f9, type: 3}
       propertyPath: m_IsActive
@@ -20237,13 +20327,13 @@ MeshCollider:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 713526107}
   - {fileID: 1012729552}
   - {fileID: 1574791416}
   - {fileID: 412755483}
   - {fileID: 1567955431}
   - {fileID: 1594731090}
   - {fileID: 1769412599}
-  - {fileID: 1745466070}
   - {fileID: 1310827132}
   - {fileID: 1860317715}
   - {fileID: 1587679057}
