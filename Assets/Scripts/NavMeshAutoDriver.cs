@@ -64,6 +64,15 @@ public class NavMeshAutoDriver : MonoBehaviour
     [Tooltip("이보다 큰 물체(벽·바닥 같은 방 구조)는 표시하지 않음 (m)")]
     public float MaxObstacleSize = 2.5f;
 
+    [Header("실제 로봇 연동")]
+    [Tooltip("자율 주행 움직임을 실제 로봇(cmd_vel)으로도 보냄. 같은 오브젝트의 CmdVelKeyboardPublisher가 대신 보내 줌")]
+    public bool DriveRealRobot = true;
+
+    /// <summary>자율 주행 중인지 (실제 로봇으로 보낼지 판단용)</summary>
+    public bool IsDriving => isMoving;
+    /// <summary>지금 내리는 속도 명령 (ROS 기준): x = 앞(m/s), y = 왼쪽(m/s), z = 왼쪽 회전(rad/s)</summary>
+    public Vector3 Cmd { get; private set; }
+
     [Header("경로 선 / 화면 표시")]
     public Color LineColor = Color.red;
     public float LineWidth = 0.03f;
@@ -179,6 +188,7 @@ public class NavMeshAutoDriver : MonoBehaviour
     // ------------------------------------------------------------------ 이동
     void FixedUpdate()
     {
+        if (!busy) Cmd = Vector3.zero;   // 이번 주기에 움직이지 않으면 정지 명령
         if (!isMoving || busy) return;
         if (cornerIndex >= corners.Count) { Arrive(); return; }
 
@@ -196,10 +206,11 @@ public class NavMeshAutoDriver : MonoBehaviour
         bool reverse = AllowReverse && Mathf.Abs(errR) + 20f < Mathf.Abs(errF) && (preferReverse || dist <= ReverseMaxDistance);
         float yawErr = reverse ? errR : errF;
 
-        // 회전
-        transform.Rotate(0f, Mathf.Clamp(yawErr, -TurnSpeed * dt, TurnSpeed * dt), 0f, Space.World);
+        // 회전량
+        float yawStep = Mathf.Clamp(yawErr, -TurnSpeed * dt, TurnSpeed * dt);
 
         // 방향이 맞으면 가는 쪽을 보고 → 비어 있으면 이동, 막혀 있으면 피하기
+        Vector3 delta = Vector3.zero;
         if (Mathf.Abs(yawErr) < TurnInPlaceAngle)
         {
             if (Sense(dir, Mathf.Min(SensorRange, dist), out RaycastHit hit))
@@ -208,9 +219,10 @@ public class NavMeshAutoDriver : MonoBehaviour
                 return;
             }
             float speed = reverse ? MoveSpeed * 0.6f : MoveSpeed;   // 후진은 천천히
-            transform.position += dir * Mathf.Min(speed * dt, dist);
+            delta = dir * Mathf.Min(speed * dt, dist);
             lastTravelDir = dir;
         }
+        Move(delta, yawStep, dt);
         status = (reverse ? "후진으로 이동 중 → " : "이동 중 → ") + goalName;
 
         // 막힘 감지: 위치도 각도도 거의 안 변하면 (회전이 벽에 걸린 경우 포함)
@@ -221,8 +233,30 @@ public class NavMeshAutoDriver : MonoBehaviour
             StartCoroutine(Recover(FindBlocker(), Mathf.Abs(yawErr) >= TurnInPlaceAngle ? "회전이 막힘" : "움직이지 못함"));
     }
 
+    /// <summary>실제 로봇 라이다가 장애물을 봐서 멈췄을 때 (CmdVelKeyboardPublisher가 부름)</summary>
+    public void StopByRealObstacle(string why)
+    {
+        if (isMoving) Stop($"실제 로봇: {why} → 자율 주행 멈춤");
+    }
+
+    // Unity 모델을 움직이고, 같은 움직임을 실제 로봇용 속도 명령(ROS 기준)으로 바꿔 둠
+    void Move(Vector3 worldDelta, float yawDeg, float dt)
+    {
+        Vector3 fwd = TravelForward();
+        Vector3 right = Vector3.Cross(Vector3.up, fwd);
+        if (dt > 0f)
+        {
+            Vector3 v = worldDelta / dt;
+            // ROS: x 앞 +, y 왼쪽 +, z 반시계(왼쪽) 회전 +   /   Unity: Y축 + 회전 = 오른쪽(시계)
+            Cmd = new Vector3(Vector3.Dot(v, fwd), -Vector3.Dot(v, right), -yawDeg / dt * Mathf.Deg2Rad);
+        }
+        if (yawDeg != 0f) transform.Rotate(0f, yawDeg, 0f, Space.World);
+        if (worldDelta != Vector3.zero) transform.position += worldDelta;
+    }
+
     void Arrive()
     {
+        Cmd = Vector3.zero;
         isMoving = false;
         status = $"도착 ✓ {goalName}";
         Debug.Log($"[NavMeshAutoDriver] {goalName}에 도착했어요!");
@@ -231,6 +265,7 @@ public class NavMeshAutoDriver : MonoBehaviour
     void Stop(string why)
     {
         StopAllCoroutines();
+        Cmd = Vector3.zero;
         isMoving = false; busy = false; status = why;
         if (line != null) line.positionCount = 0;
         Debug.LogWarning("[NavMeshAutoDriver] " + why);
@@ -253,6 +288,7 @@ public class NavMeshAutoDriver : MonoBehaviour
         yield return Escape();
 
         // ③ 구멍이 지도에 반영될 시간을 준 뒤 다시 계산
+        Cmd = Vector3.zero;
         yield return new WaitForSeconds(0.25f);
         busy = false;
         if (Plan()) status = $"다른 길로 이동 중 → {goalName} ({replanCount}/{MaxReplans})";
@@ -323,13 +359,9 @@ public class NavMeshAutoDriver : MonoBehaviour
 
             float dt = Time.fixedDeltaTime;
             Vector3 p0 = transform.position; float y0 = transform.eulerAngles.y;
-            if (distance > 0f) transform.position += dir * speed * dt;
-            if (yawRate != 0f)
-            {
-                float step = yawRate * dt;
-                if (turnLimit > 0f) step = Mathf.Clamp(step, -(turnLimit - turned), turnLimit - turned);
-                transform.Rotate(0f, step, 0f, Space.World);
-            }
+            float step = yawRate * dt;
+            if (yawRate != 0f && turnLimit > 0f) step = Mathf.Clamp(step, -(turnLimit - turned), turnLimit - turned);
+            Move(distance > 0f ? dir * speed * dt : Vector3.zero, step, dt);
             yield return new WaitForFixedUpdate();
             t += dt;
 
@@ -337,6 +369,7 @@ public class NavMeshAutoDriver : MonoBehaviour
             stuckT = moved ? 0f : stuckT + dt;
             if (stuckT > 0.3f) break;
         }
+        Cmd = Vector3.zero;
         Vector3 d = transform.position - startPos; d.y = 0f;
         lastMoved = d.magnitude;
         lastTurned = Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, startYaw));

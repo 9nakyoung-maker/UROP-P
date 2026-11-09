@@ -3254,11 +3254,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0492e1afe3d322d46bcc54176d52a45a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AutoWallCollider
-  watchNewChildren: 1
-  skipNames:
-  - rosmentor
-  - turtlebot3_burger
-  - RealRobotLink
 --- !u!114 &389478785
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14624,6 +14619,7 @@ GameObject:
   - component: {fileID: 1587679065}
   - component: {fileID: 1587679067}
   - component: {fileID: 1587679068}
+  - component: {fileID: 1587679069}
   m_Layer: 0
   m_Name: rosmentor
   m_TagString: Untagged
@@ -14688,7 +14684,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e2717448c02d5347b8855818f7f1c41, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiffDriveController
-  CmdVelTopic: cmd_vel
+  CmdVelTopic: /controller/cmd_vel
   MaxLinear: 0.22
   MaxAngular: 2.84
   CmdTimeout: 0.5
@@ -14714,7 +14710,7 @@ MonoBehaviour:
   SecondsTimeout: 10
   Serializer: 1
   protocol: 1
-  RosBridgeServerUrl: ws://localhost:9090
+  RosBridgeServerUrl: ws://192.168.149.1:9090
 --- !u!114 &1587679064
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14882,6 +14878,24 @@ MonoBehaviour:
   LineColor: {r: 1, g: 0, b: 0, a: 1}
   LineWidth: 0.03
   ShowHelp: 1
+--- !u!114 &1587679069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1587679055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62e59d5a55eb98a4a9d36a07aadbaa8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CmdVelKeyboardPublisher
+  Topic: /controller/cmd_vel
+  maxLinear: 0.2
+  maxAngular: 1
+  publishRate: 10
+  debugLog: 1
+  showStatus: 1
 --- !u!1 &1594731087
 GameObject:
   m_ObjectHideFlags: 0
