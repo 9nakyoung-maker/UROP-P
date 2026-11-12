@@ -3254,6 +3254,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0492e1afe3d322d46bcc54176d52a45a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AutoWallCollider
+  watchNewChildren: 1
+  skipNames:
+  - rosmentor
+  - turtlebot3_burger
+  - RealRobotLink
 --- !u!114 &389478785
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14620,6 +14625,7 @@ GameObject:
   - component: {fileID: 1587679067}
   - component: {fileID: 1587679068}
   - component: {fileID: 1587679069}
+  - component: {fileID: 1587679070}
   m_Layer: 0
   m_Name: rosmentor
   m_TagString: Untagged
@@ -14761,7 +14767,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LanderPiTeleop
   maxLinear: 0.3
   maxAngular: 90
-  driveBase: 1
+  driveBase: 0
   mecanum: 1
   invertForward: 0
   collisionRadius: 0.12
@@ -14875,6 +14881,7 @@ MonoBehaviour:
   StrafeDistance: 0.2
   MarkObstacles: 1
   MaxObstacleSize: 2.5
+  DriveRealRobot: 1
   LineColor: {r: 1, g: 0, b: 0, a: 1}
   LineWidth: 0.03
   ShowHelp: 1
@@ -14894,8 +14901,39 @@ MonoBehaviour:
   maxLinear: 0.2
   maxAngular: 1
   publishRate: 10
+  sendAutoDrive: 1
+  autoDriver: {fileID: 0}
+  useLidarSafety: 1
+  scanTopic: /scan
+  stopDistance: 0.3
+  slowDistance: 0.6
+  sideStopDistance: 0.2
+  sectorHalfAngle: 30
+  scanAngleOffset: 0
+  ignoreCloserThan: 0.08
   debugLog: 1
   showStatus: 1
+--- !u!114 &1587679070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1587679055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7924cba545b4c543bab5db84d5777ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArmServoPublisher
+  Topic: 
+  teleop: {fileID: 0}
+  publishRate: 10
+  servoDuration: 0.15
+  directionSign: 0100000001000000010000000100000001000000
+  centerPulse: f4010000f4010000f4010000f4010000f4010000
+  gripperOpenPulse: 250
+  gripperClosePulse: 650
+  debugLog: 0
 --- !u!1 &1594731087
 GameObject:
   m_ObjectHideFlags: 0

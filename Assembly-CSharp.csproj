@@ -56,6 +56,7 @@
     <Compile Include="Assets\Scripts\CameraSensor.cs" />
     <Compile Include="Assets\Scripts\SimTime.cs" />
     <Compile Include="Assets\TutorialInfo\Readme.cs" />
+    <Compile Include="Assets\Scripts\ArmServoPublisher.cs" />
     <Compile Include="Assets\Scripts\MinimapFollow.cs" />
     <Compile Include="Assets\RobotVisualAligner.cs" />
     <Compile Include="Assets\Scripts\ClockPublisher.cs" />
@@ -64,6 +65,8 @@
     <Compile Include="Assets\Scripts\AutoWallCollider.cs" />
     <Compile Include="Assets\Scripts\LanderPiTeleop.cs" />
     <Compile Include="Assets\Scripts\MyLineFollower.cs" />
+    <Compile Include="Assets\Scripts\CmdVelKeyboardPublisher.cs" />
+    <Compile Include="Assets\Scripts\NavMeshAutoDriver.cs" />
     <Compile Include="Assets\Scripts\TfPublisher.cs" />
     <Compile Include="Assets\Scripts\DiffDriveController.cs" />
     <Compile Include="Assets\Scripts\CameraFollow.cs" />
