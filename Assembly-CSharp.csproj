@@ -52,6 +52,8 @@
     <Compile Include="Assets\Scripts\LidarSensor.cs" />
     <Compile Include="Assets\Scripts\KeyboardDriveTest.cs" />
     <Compile Include="Assets\Scripts\RoomColorizer.cs" />
+    <Compile Include="Assets\Scripts\RobotPoseSync.cs" />
+    <Compile Include="Assets\Scripts\LanderPiNav2Bridge.cs" />
     <Compile Include="Assets\Scripts\RobotBodyBlocker.cs" />
     <Compile Include="Assets\Scripts\CameraSensor.cs" />
     <Compile Include="Assets\Scripts\SimTime.cs" />
@@ -63,6 +65,7 @@
     <Compile Include="Assets\Scripts\LanderPiSimTf.cs" />
     <Compile Include="Assets\Scripts\ClockMessage.cs" />
     <Compile Include="Assets\Scripts\AutoWallCollider.cs" />
+    <Compile Include="Assets\Scripts\SavedMapLoader.cs" />
     <Compile Include="Assets\Scripts\LanderPiTeleop.cs" />
     <Compile Include="Assets\Scripts\MyLineFollower.cs" />
     <Compile Include="Assets\Scripts\CmdVelKeyboardPublisher.cs" />
